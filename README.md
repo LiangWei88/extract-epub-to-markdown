@@ -22,20 +22,35 @@
 2.  **Pandoc** (版本 2.0+ 建议，用于核心格式转换)
     -   Windows 用户可通过 `choco install pandoc` 或官网下载安装。
 
-### 安装依赖
+### 安装步骤
 
-```bash
-pip install ebooklib beautifulsoup4
-```
+建议使用虚拟环境以保持系统环境整洁：
+
+1.  **创建并激活虚拟环境**：
+    ```bash
+    # Windows
+    python -m venv venv
+    .\venv\Scripts\activate
+
+    # macOS / Linux
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+2.  **安装依赖**：
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## 📖 使用方法
 
-1.  将 `epub_to_md.py` 放置在包含 `.epub` 文件的文件夹中。
-2.  打开终端（PowerShell 或 CMD），运行：
+1.  将需要转换的 `.epub` 文件复制到本项目根目录下（即 `epub_to_md.py` 所在的文件夹）。
+2.  激活虚拟环境（参考上文“安装步骤”）。
+3.  在终端运行转换脚本：
     ```bash
     python epub_to_md.py
     ```
-3.  脚本将为每本书创建一个以书名为命名的文件夹，内部包含转换后的 Markdown 文件及图片。
+4.  脚本将自动识别目录下的所有 EPUB 文件，并为每本书创建一个独立的文件夹，内部包含转换后的 Markdown 文件及图片。
 
 ## 📁 输出示例
 
@@ -53,6 +68,8 @@ pip install ebooklib beautifulsoup4
 ## 🌟 为什么选择这个工具？
 
 -   **对笔记控友好**：生成的 Markdown 结构清晰，图片路径完美适配 Obsidian 等工具。
+-   **AI & RAG 优化**：极其纯净的文本输出和按章节拆分的结构，非常适合作为 AI 模型训练、长文本处理或 RAG（检索增强生成）知识库的语料来源。
+-   **助力高效学习**：结构化的 Markdown 片段完美契合**渐进式阅读（Incremental Reading）**、SuperMemo 或 Anki 等记忆与学习工具，提升知识内化效率。
 -   **代码简洁**：单文件脚本，逻辑清晰，易于根据个人需求二次开发。
 -   **鲁棒性强**：针对 EPUB 中复杂的锚点定位做了大量优化，确保内容不漏、不重。
 
