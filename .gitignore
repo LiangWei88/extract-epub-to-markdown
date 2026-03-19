@@ -1,5 +1,13 @@
+# Ignore all EPUB books
 *.epub
+
+# Ignore generated Markdown files but keep README.md
 *.md
+!README.md
+
+# Ignore images and temporary book artifacts
 *.png
 *.jpg
 *.xhtml
+assets/
+**/assets/
