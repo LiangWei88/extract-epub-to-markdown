@@ -29,16 +29,45 @@ def extract_images(book):
     return image_data
 
 def html_to_md(html_soup, output_path, image_data_map):
-    """清理 HTML 并将图片保存到本地 assets 文件夹"""
+    """清理 HTML 并将图片保存到本地 assets 文件夹，同时识别并缩放图标"""
+    
+    # 用于存放图标的 HTML 代码，以便后续替换回 Markdown
+    icon_placeholders = {}
+    
     # 彻底清理所有不必要的标签属性，防止 Pandoc 产生 artifacts (如 {cfi="..."})
-    # 只保留 img 的 src 属性
-    for tag in html_soup.find_all(True):
-        if tag.name == 'img':
-            # 只保留 src，移除 cfi, data-cfi, id, class 等
-            src = tag.get('src', '')
-            tag.attrs = {'src': src}
+    img_tags = html_soup.find_all('img')
+    for i, tag in enumerate(img_tags):
+        src = tag.get('src', '')
+        src_name = os.path.basename(src)
+        
+        # 识别图标：判断图片是否与文本同行（行内图片）
+        is_icon = False
+        
+        # 查找包含图片的块级容器
+        container = tag.find_parent(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'div'])
+        if container:
+            # 获取容器内的纯文本内容（不含标签）
+            container_text = container.get_text(strip=True)
+            if container_text:
+                is_icon = True
+        
+        # 处理图片路径本地化
+        final_src = f"assets/{src_name}"
+        
+        if is_icon:
+            # 如果是图标，创建一个占位符 (不使用下划线，避免被 Pandoc 转义)
+            placeholder = f"ICONPLACEHOLDER{i}"
+            # 构造带样式的 HTML <img> 标签
+            icon_html = f'<img src="{final_src}" style="height: 1.2em; vertical-align: middle; display: inline-block;">'
+            icon_placeholders[placeholder] = icon_html
+            tag.replace_with(placeholder)
         else:
-            # 移除所有属性
+            # 普通图片，仅保留 src
+            tag.attrs = {'src': final_src}
+
+    # 清理其他标签属性
+    for tag in html_soup.find_all(True):
+        if tag.name != 'img': # img 已经被处理或替换了
             tag.attrs = {}
             
     # 如果是 span 或 div，尽量剥离
@@ -46,35 +75,33 @@ def html_to_md(html_soup, output_path, image_data_map):
         if not tag.find('img'):
             tag.unwrap()
 
-    # 处理图片本地化存储
+    # 处理图片物理文件保存
     current_dir = os.path.dirname(output_path)
     local_assets_dir = os.path.join(current_dir, 'assets')
     
-    found_images = html_soup.find_all('img')
-    if found_images and not os.path.exists(local_assets_dir):
-        os.makedirs(local_assets_dir)
+    # 重新查找现存的 img 标签（非图标）以及从 placeholder 记录中找图片
+    all_src_names = [os.path.basename(img.get('src', '')) for img in html_soup.find_all('img')]
+    for html_code in icon_placeholders.values():
+        if 'src="assets/' in html_code:
+            name = html_code.split('src="assets/')[1].split('"')[0]
+            all_src_names.append(name)
 
-    for img in found_images:
-        src = img.get('src', '')
-        if not src: continue
-        
-        src_name = os.path.basename(src)
-        if src_name in image_data_map:
-            # 将图片写入当前层级的 assets 文件夹
-            target_img_path = os.path.join(local_assets_dir, src_name)
-            if not os.path.exists(target_img_path):
-                with open(target_img_path, 'wb') as f:
-                    f.write(image_data_map[src_name])
-            
-            # 设置 Markdown 链接指向本地 assets
-            img['src'] = f"assets/{src_name}"
+    if all_src_names:
+        if not os.path.exists(local_assets_dir):
+            os.makedirs(local_assets_dir)
+        for name in set(all_src_names):
+            if name in image_data_map:
+                target_img_path = os.path.join(local_assets_dir, name)
+                if not os.path.exists(target_img_path):
+                    with open(target_img_path, 'wb') as f:
+                        f.write(image_data_map[name])
     
     temp_html = output_path + '.temp.html'
     with open(temp_html, 'w', encoding='utf-8') as f:
         f.write(str(html_soup))
     
     try:
-        # 使用 gfm 格式，它比较纯净，不会带 Pandoc 自定义的属性
+        # 转换为 markdown
         subprocess.run([
             'pandoc', 
             temp_html, 
@@ -83,6 +110,18 @@ def html_to_md(html_soup, output_path, image_data_map):
             '--wrap=none',
             '-o', output_path
         ], check=True, capture_output=True)
+        
+        # 读取生成的 Markdown 并将占位符替换回 HTML
+        if icon_placeholders:
+            with open(output_path, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+            
+            for placeholder, icon_html in icon_placeholders.items():
+                md_content = md_content.replace(placeholder, icon_html)
+                
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+                
     except subprocess.CalledProcessError:
         print(f"Pandoc 转换失败: {output_path}")
     finally:
