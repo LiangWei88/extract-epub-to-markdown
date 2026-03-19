@@ -5,9 +5,10 @@ venv/
 # Ignore all EPUB books
 *.epub
 
-# Ignore generated Markdown files but keep README.md
+# Ignore generated Markdown files but keep READMEs
 *.md
 !README.md
+!README_zh.md
 
 # Ignore images and temporary book artifacts
 *.png

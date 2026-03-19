@@ -1,32 +1,34 @@
 # EPUB to Markdown Chapter Splitter
 
-这是一个功能强大的 Python 脚本，旨在将 EPUB 电子书精准地拆分为按章节组织的 Markdown 文件。它不仅能够保持原始书籍的层级结构，还能智能化地处理图片，并生成极其纯净的 Markdown 文本，非常适合用于知识库管理、个人笔记系统（如 Obsidian, Logseq, Notion）或电子书再创作。
+**English** | [简体中文](./README_zh.md)
 
-## ✨ 特性
+A powerful Python script designed to precisely split EPUB ebooks into chapter-organized Markdown files. It maintains the original hierarchical structure, intelligently handles images, and generates exceptionally clean Markdown text. Perfect for knowledge base management, personal note-taking systems (like Obsidian, Logseq, Notion), or ebook remixing.
 
--   **🎯 精准章节拆分**：利用 HTML 锚点（Anchor）技术，不仅能按大章节拆分，还能完美处理嵌套的小章节。
--   **📂 结构化目录**：自动根据书籍目录（TOC）创建文件夹层级。如果一个章节包含子章节，会同时保留该章节的开篇内容（.md）和子章节文件夹。
--   **🖼️ 智能化图片处理**：
-    -   **本地化存储**：自动提取图片到各层级的 `assets` 文件夹，确保 Markdown 预览永不失效。
-    -   **图标自适应缩放**：自动识别标题或文本行内的图标/小图，并将其缩放至与文字等高（1.2em），保持排版美观。
--   **🧹 纯净输出**：
-    -   彻底清除 HTML 冗余属性（如 `id`, `class`, `style`）。
-    -   **自动消除伪影**：有效解决 Pandoc 转换中常见的 `cfi` 属性或 ID 锚点残留问题。
--   **🚀 批量处理**：一键处理当前目录下的所有 EPUB 文件。
+## ✨ Features
 
-## 🛠️ 环境要求
+-   **🎯 Precise Chapter Splitting**: Uses HTML anchor technology to split not just major chapters but also nested sub-sections perfectly.
+-   **📂 Structured Directory**: Automatically creates folder hierarchies based on the book's Table of Contents (TOC). If a chapter contains sub-sections, it preserves both the chapter's introductory content (.md) and the sub-section folder.
+-   **🖼️ Intelligent Image Processing**:
+    -   **Localized Storage**: Automatically extracts images into `assets` folders at each level, ensuring Markdown previews never break.
+    -   **Adaptive Icon Scaling**: Automatically identifies icons or small images within titles or text lines and scales them to text height (1.2em) for a beautiful layout.
+-   **🧹 Clean Output**:
+    -   Thoroughly removes redundant HTML attributes (like `id`, `class`, `style`).
+    -   **Artifact Elimination**: Effectively resolves common Pandoc conversion issues like leftover `cfi` attributes or ID anchors.
+-   **🚀 Batch Processing**: Processes all EPUB files in the current directory with a single command.
 
-在使用此脚本之前，请确保你的系统中已安装以下工具：
+## 🛠️ Requirements
+
+Before using this script, ensure you have the following tools installed:
 
 1.  **Python 3.10+**
-2.  **Pandoc** (版本 2.0+ 建议，用于核心格式转换)
-    -   Windows 用户可通过 `choco install pandoc` 或官网下载安装。
+2.  **Pandoc** (Version 2.0+ recommended for core conversion)
+    -   Windows users can install via `choco install pandoc` or from the official website.
 
-### 安装步骤
+### Installation Steps
 
-建议使用虚拟环境以保持系统环境整洁：
+It is recommended to use a virtual environment to keep your system environment clean:
 
-1.  **创建并激活虚拟环境**：
+1.  **Create and Activate Virtual Environment**:
     ```bash
     # Windows
     python -m venv venv
@@ -37,43 +39,43 @@
     source venv/bin/activate
     ```
 
-2.  **安装依赖**：
+2.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
 
-## 📖 使用方法
+## 📖 How to Use
 
-1.  将需要转换的 `.epub` 文件复制到本项目根目录下（即 `epub_to_md.py` 所在的文件夹）。
-2.  激活虚拟环境（参考上文“安装步骤”）。
-3.  在终端运行转换脚本：
+1.  Copy the `.epub` files you want to convert into the project root directory (where `epub_to_md.py` is located).
+2.  Activate the virtual environment (see "Installation Steps" above).
+3.  Run the conversion script in your terminal:
     ```bash
     python epub_to_md.py
     ```
-4.  脚本将自动识别目录下的所有 EPUB 文件，并为每本书创建一个独立的文件夹，内部包含转换后的 Markdown 文件及图片。
+4.  The script will automatically identify all EPUB files and create a separate folder for each book containing the converted Markdown files and images.
 
-## 📁 输出示例
+## 📁 Output Example
 
-转换后的结构如下：
+The converted structure looks like this:
 ```text
-我的书籍/
-├── 第一章.md (仅含本章开篇内容)
-├── assets/ (本层级图片)
-└── 第一章/
-    ├── 第一节.md
-    ├── 第二节.md
-    └── assets/ (子章节图片)
+My_Book/
+├── Chapter_1.md (Contains only the intro content of this chapter)
+├── assets/ (Images for this level)
+└── Chapter_1/
+    ├── Section_1.1.md
+    ├── Section_1.2.md
+    └── assets/ (Images for sub-sections)
 ```
 
-## 🌟 为什么选择这个工具？
+## 🌟 Why Choose This Tool?
 
--   **对笔记控友好**：生成的 Markdown 结构清晰，图片路径完美适配 Obsidian 等工具。
--   **AI & RAG 优化**：极其纯净的文本输出和按章节拆分的结构，非常适合作为 AI 模型训练、长文本处理或 RAG（检索增强生成）知识库的语料来源。
--   **助力高效学习**：结构化的 Markdown 片段完美契合**渐进式阅读（Incremental Reading）**、SuperMemo 或 Anki 等记忆与学习工具，提升知识内化效率。
--   **代码简洁**：单文件脚本，逻辑清晰，易于根据个人需求二次开发。
--   **鲁棒性强**：针对 EPUB 中复杂的锚点定位做了大量优化，确保内容不漏、不重。
+-   **Note-Taking Friendly**: Generates clearly structured Markdown with image paths perfectly suited for tools like Obsidian.
+-   **AI & RAG Optimized**: Extremely clean text output and chapter-split structure make it ideal as a source for AI model training, long-text processing, or RAG (Retrieval-Augmented Generation) knowledge bases.
+-   **Boosts Efficient Learning**: Structured Markdown snippets align perfectly with **Incremental Reading**, SuperMemo, or Anki, enhancing knowledge internalization efficiency.
+-   **Clean Code**: Single-file script with clear logic, easy to customize for personal needs.
+-   **Robust**: Heavily optimized for complex anchor positioning in EPUBs, ensuring no content is missed or duplicated.
 
 ---
 
-**如果你觉得这个工具有帮助，欢迎给一个 ⭐️ Star！**
-也欢迎提交 Issue 或 Pull Request 来完善它。
+**If you find this tool helpful, please give it a ⭐️ Star!**
+Feel free to submit an Issue or Pull Request to help improve it.
