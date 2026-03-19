@@ -10,79 +10,80 @@ def clean_filename(filename):
     # 替换 Windows 不允许的字符
     return re.sub(r'[\\/*?:"<>|]', '_', filename).strip()
 
-def extract_images(book, output_dir):
-    """从 epub 中提取真正的图片文件并保存到 assets 文件夹"""
-    assets_dir = os.path.join(output_dir, 'assets')
-    if not os.path.exists(assets_dir):
-        os.makedirs(assets_dir)
-    
-    image_map = {} # 原路径 -> 提取后的相对路径
-    # 常见的图片扩展名
+def extract_images(book):
+    """从 epub 中获取所有图片项并返回名称到内容的映射"""
+    image_data = {}
     img_exts = ('.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp')
     
     for item in book.get_items():
-        # ITEM_IMAGE 为 9
         is_image_type = item.get_type() == 9
-        has_img_ext = item.get_name().lower().endswith(img_exts)
+        name = item.get_name()
+        has_img_ext = name.lower().endswith(img_exts)
         
         if is_image_type or has_img_ext:
-            name = os.path.basename(item.get_name())
-            # 避免重名
-            target_path = os.path.join(assets_dir, name)
             content = item.get_content()
             if content:
-                with open(target_path, 'wb') as f:
-                    f.write(content)
-                # 记录映射关系，用于后续 HTML 中的路径替换
-                image_map[item.get_name()] = os.path.join('assets', name)
-                # 同时也记录不带路径的名字映射，因为 HTML 中可能是相对路径
-                image_map[name] = os.path.join('assets', name)
-    return image_map
+                base_name = os.path.basename(name)
+                image_data[base_name] = content
+                image_data[name] = content
+    return image_data
 
-def html_to_md(html_soup, output_path, image_map):
-    """将 BeautifulSoup 处理后的 HTML 转换为 Markdown"""
-    # 移除不必要的样式和空标签，使 Markdown 更简洁
-    for tag in html_soup.find_all(['span', 'div']):
-        # 如果没有重要属性（如 id），则剥离标签保留内容
-        if not tag.get('id') and not tag.find('img'):
-            tag.unwrap()
-    
-    # 移除所有 style 属性
+def html_to_md(html_soup, output_path, image_data_map):
+    """清理 HTML 并将图片保存到本地 assets 文件夹"""
+    # 彻底清理所有不必要的标签属性，防止 Pandoc 产生 artifacts (如 {cfi="..."})
+    # 只保留 img 的 src 属性
     for tag in html_soup.find_all(True):
-        if tag.has_attr('style'):
-            del tag['style']
-        if tag.has_attr('class'):
-            del tag['class']
+        if tag.name == 'img':
+            # 只保留 src，移除 cfi, data-cfi, id, class 等
+            src = tag.get('src', '')
+            tag.attrs = {'src': src}
+        else:
+            # 移除所有属性
+            tag.attrs = {}
+            
+    # 如果是 span 或 div，尽量剥离
+    for tag in html_soup.find_all(['span', 'div']):
+        if not tag.find('img'):
+            tag.unwrap()
 
-    # 处理图片路径
-    for img in html_soup.find_all('img'):
+    # 处理图片本地化存储
+    current_dir = os.path.dirname(output_path)
+    local_assets_dir = os.path.join(current_dir, 'assets')
+    
+    found_images = html_soup.find_all('img')
+    if found_images and not os.path.exists(local_assets_dir):
+        os.makedirs(local_assets_dir)
+
+    for img in found_images:
         src = img.get('src', '')
         if not src: continue
         
         src_name = os.path.basename(src)
-        if src_name in image_map:
-            img['src'] = image_map[src_name]
-        else:
-            for orig, new in image_map.items():
-                if orig in src or src in orig:
-                    img['src'] = new
-                    break
+        if src_name in image_data_map:
+            # 将图片写入当前层级的 assets 文件夹
+            target_img_path = os.path.join(local_assets_dir, src_name)
+            if not os.path.exists(target_img_path):
+                with open(target_img_path, 'wb') as f:
+                    f.write(image_data_map[src_name])
+            
+            # 设置 Markdown 链接指向本地 assets
+            img['src'] = f"assets/{src_name}"
     
     temp_html = output_path + '.temp.html'
     with open(temp_html, 'w', encoding='utf-8') as f:
         f.write(str(html_soup))
     
     try:
-        # 使用 pandoc 转换为 markdown，禁用原生 div 和 span 以获得更干净的输出
+        # 使用 gfm 格式，它比较纯净，不会带 Pandoc 自定义的属性
         subprocess.run([
             'pandoc', 
             temp_html, 
-            '-f', 'html-native_divs-native_spans', 
-            '-t', 'commonmark_x-raw_html', # 使用更标准的 Markdown 并禁用原始 HTML
+            '-f', 'html', 
+            '-t', 'gfm', 
             '--wrap=none',
             '-o', output_path
         ], check=True, capture_output=True)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         print(f"Pandoc 转换失败: {output_path}")
     finally:
         if os.path.exists(temp_html):
@@ -133,7 +134,7 @@ def get_content_segment(soup, start_anchor, end_anchor):
     collect_nodes(soup.find('body'))
     return new_soup
 
-def process_toc(book, toc, parent_dir, image_map):
+def process_toc(book, toc, parent_dir, image_data_map):
     """递归处理 TOC 并拆分章节"""
     # 预先平坦化 TOC 以便查找“下一个”锚点
     flat_toc = []
@@ -150,13 +151,6 @@ def process_toc(book, toc, parent_dir, image_map):
         if isinstance(entry, tuple):
             return entry[0].title, entry[0].href, entry[1]
         return entry.title, entry.href, []
-
-    for i, entry in enumerate(flat_toc):
-        title, href, _ = get_entry_info(entry)
-        
-        # 查找当前 entry 的子项（在原始嵌套 TOC 中找）
-        # 这里我们换个思路：直接按 flat_toc 顺序处理，但维护目录结构
-        pass
 
     # 重新实现递归逻辑，同时利用 flat_toc 寻找边界
     def process_recursive(entries, current_dir):
@@ -206,7 +200,7 @@ def process_toc(book, toc, parent_dir, image_map):
             segment_soup = get_content_segment(soup, anchor, next_anchor)
             
             target_md_path = os.path.join(current_dir, f"{clean_title}.md")
-            html_to_md(segment_soup, target_md_path, image_map)
+            html_to_md(segment_soup, target_md_path, image_data_map)
             
             if sub_entries:
                 sub_dir = os.path.join(current_dir, clean_title)
@@ -231,11 +225,11 @@ def process_epub(epub_path):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
     
-    # 提取图片
-    image_map = extract_images(book, output_dir)
+    # 获取所有图片数据
+    image_data_map = extract_images(book)
     
     # 处理目录
-    process_toc(book, book.toc, output_dir, image_map)
+    process_toc(book, book.toc, output_dir, image_data_map)
     print(f"完成: {epub_path}")
 
 if __name__ == "__main__":
